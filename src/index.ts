@@ -37,6 +37,8 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
 };
 
+const MAX_DEBUG_PAYLOAD_BYTES = 750_000;
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -192,20 +194,35 @@ async function ingestDebugRaw(env: Env, request: Request): Promise<Response> {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
 
-  const body = (await request.json()) as DebugRawPayload;
-  const now = new Date().toISOString();
-  const source = typeof body.source === "string" && body.source.length > 0 ? body.source : "unknown";
-  const capturedAt = typeof body.capturedAt === "string" && body.capturedAt.length > 0 ? body.capturedAt : null;
-  const payloadJson = JSON.stringify(body.payload ?? body);
+  try {
+    const body = (await request.json()) as DebugRawPayload;
+    const now = new Date().toISOString();
+    const source = typeof body.source === "string" && body.source.length > 0 ? body.source : "unknown";
+    const capturedAt = typeof body.capturedAt === "string" && body.capturedAt.length > 0 ? body.capturedAt : null;
 
-  await env.DB.prepare(
-    `INSERT INTO raw_ingest_debug (source, captured_at, received_at, payload_json)
-     VALUES (?, ?, ?, ?)`
-  )
-    .bind(source, capturedAt, now, payloadJson)
-    .run();
+    let payloadJson = "";
+    try {
+      payloadJson = JSON.stringify(body.payload ?? body);
+    } catch {
+      return json({ ok: false, error: "debug_payload_not_serializable" }, 400);
+    }
 
-  return json({ ok: true, stored: true, receivedAt: now });
+    if (new TextEncoder().encode(payloadJson).length > MAX_DEBUG_PAYLOAD_BYTES) {
+      return json({ ok: false, error: "debug_payload_too_large" }, 413);
+    }
+
+    await env.DB.prepare(
+      `INSERT INTO raw_ingest_debug (source, captured_at, received_at, payload_json)
+       VALUES (?, ?, ?, ?)`
+    )
+      .bind(source, capturedAt, now, payloadJson)
+      .run();
+
+    return json({ ok: true, stored: true, receivedAt: now });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    return json({ ok: false, error: "debug_ingest_failed", detail: message }, 500);
+  }
 }
 
 async function getDebugRaw(env: Env, request: Request): Promise<Response> {
