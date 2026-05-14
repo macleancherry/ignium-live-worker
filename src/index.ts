@@ -181,6 +181,8 @@ async function ingest(env: Env, request: Request): Promise<Response> {
 async function getLive(env: Env, request: Request): Promise<Response> {
   const url = new URL(request.url);
   const subsessionId = url.searchParams.get("subsessionId");
+  const includeAll = url.searchParams.get("all") === "1";
+  const includeUnpositioned = url.searchParams.get("includeUnpositioned") === "1";
 
   let query = `SELECT
     session_id as sessionId,
@@ -203,6 +205,12 @@ async function getLive(env: Env, request: Request): Promise<Response> {
   if (subsessionId) {
     query += " WHERE subsession_id = ?";
     params.push(subsessionId);
+  } else if (!includeAll) {
+    query += " WHERE received_at = (SELECT MAX(received_at) FROM live_timing)";
+  }
+
+  if (!includeUnpositioned) {
+    query += subsessionId || !includeAll ? " AND position > 0" : " WHERE position > 0";
   }
 
   query += " ORDER BY position ASC";
