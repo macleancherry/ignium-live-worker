@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ignium-live-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-14",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ignium_live",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+    }
+  ],
+  "vars": {
+    "INGEST_TOKEN": "REPLACE_WITH_STRONG_SHARED_SECRET"
+  }
+}
