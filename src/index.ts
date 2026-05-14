@@ -25,6 +25,12 @@ type IngestPayload = {
   rows: IngestDriverRow[];
 };
 
+type DebugRawPayload = {
+  source?: string;
+  capturedAt?: string;
+  payload?: unknown;
+};
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -90,10 +96,13 @@ function validateRow(row: Partial<IngestDriverRow>): row is IngestDriverRow {
   );
 }
 
-async function ingest(env: Env, request: Request): Promise<Response> {
+function isAuthorized(env: Env, request: Request): boolean {
   const auth = request.headers.get("Authorization") || "";
-  const expected = `Bearer ${env.INGEST_TOKEN}`;
-  if (auth !== expected) {
+  return auth === `Bearer ${env.INGEST_TOKEN}`;
+}
+
+async function ingest(env: Env, request: Request): Promise<Response> {
+  if (!isAuthorized(env, request)) {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
 
@@ -178,6 +187,53 @@ async function ingest(env: Env, request: Request): Promise<Response> {
   return json({ ok: true, accepted: rows.length, capturedAt: body.capturedAt ?? now });
 }
 
+async function ingestDebugRaw(env: Env, request: Request): Promise<Response> {
+  if (!isAuthorized(env, request)) {
+    return json({ ok: false, error: "unauthorized" }, 401);
+  }
+
+  const body = (await request.json()) as DebugRawPayload;
+  const now = new Date().toISOString();
+  const source = typeof body.source === "string" && body.source.length > 0 ? body.source : "unknown";
+  const capturedAt = typeof body.capturedAt === "string" && body.capturedAt.length > 0 ? body.capturedAt : null;
+  const payloadJson = JSON.stringify(body.payload ?? body);
+
+  await env.DB.prepare(
+    `INSERT INTO raw_ingest_debug (source, captured_at, received_at, payload_json)
+     VALUES (?, ?, ?, ?)`
+  )
+    .bind(source, capturedAt, now, payloadJson)
+    .run();
+
+  return json({ ok: true, stored: true, receivedAt: now });
+}
+
+async function getDebugRaw(env: Env, request: Request): Promise<Response> {
+  if (!isAuthorized(env, request)) {
+    return json({ ok: false, error: "unauthorized" }, 401);
+  }
+
+  const url = new URL(request.url);
+  const limitRaw = Number.parseInt(url.searchParams.get("limit") ?? "1", 10);
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 25) : 1;
+
+  const rows = await env.DB.prepare(
+    `SELECT id, source, captured_at as capturedAt, received_at as receivedAt, payload_json as payloadJson
+     FROM raw_ingest_debug
+     ORDER BY id DESC
+     LIMIT ?`
+  )
+    .bind(limit)
+    .all();
+
+  return json({
+    ok: true,
+    rows: rows.results ?? [],
+    count: (rows.results ?? []).length,
+    generatedAt: new Date().toISOString()
+  });
+}
+
 async function getLive(env: Env, request: Request): Promise<Response> {
   const url = new URL(request.url);
   const subsessionId = url.searchParams.get("subsessionId");
@@ -238,6 +294,14 @@ export default {
 
     if (pathname === "/api/live/ingest" && request.method === "POST") {
       return ingest(env, request);
+    }
+
+    if (pathname === "/api/live/debug/raw" && request.method === "POST") {
+      return ingestDebugRaw(env, request);
+    }
+
+    if (pathname === "/api/live/debug/raw" && request.method === "GET") {
+      return getDebugRaw(env, request);
     }
 
     if (pathname === "/api/live" && request.method === "GET") {

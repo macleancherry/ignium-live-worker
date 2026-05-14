@@ -7,10 +7,8 @@
     {
       "binding": "DB",
       "database_name": "ignium_live",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "856fb608-0f22-468b-8019-64e859cad38b"
     }
   ],
-  "vars": {
-    "INGEST_TOKEN": "REPLACE_WITH_STRONG_SHARED_SECRET"
-  }
+
 }

@@ -9,6 +9,12 @@ Cloudflare Worker API for live timing ingest and read queries.
   - Accepts a low-rate payload from the local iRSDK collector.
 - `GET /api/live?subsessionId=<id>`
   - Returns current live timing rows ordered by position.
+- `POST /api/live/debug/raw`
+  - Requires `Authorization: Bearer <INGEST_TOKEN>`.
+  - Stores raw debug payloads from development collector builds.
+- `GET /api/live/debug/raw?limit=1`
+  - Requires `Authorization: Bearer <INGEST_TOKEN>`.
+  - Returns latest raw debug payloads for schema inspection.
 - `GET /health`
 
 ## Local setup
