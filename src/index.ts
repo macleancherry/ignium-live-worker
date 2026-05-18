@@ -8,14 +8,23 @@ type IngestDriverRow = {
   subsessionId: string;
   customerId: number;
   driverName: string;
+  teamName?: string | null;
   carNumber: string;
   position: number;
   classPosition: number;
+  classId?: number | null;
+  classShortName?: string | null;
+  iRating?: number | null;
   lap: number;
   lastLap: number | null;
+  lastLapValid?: boolean | null;
   bestLap: number | null;
+  bestLapNumber?: number | null;
   interval: number | null;
   gap: number | null;
+  inPits?: boolean | null;
+  outLap?: boolean | null;
+  lastPitLap?: number | null;
   updatedAt: string;
 };
 
@@ -139,28 +148,46 @@ async function ingest(env: Env, request: Request): Promise<Response> {
       subsession_id,
       customer_id,
       driver_name,
+      team_name,
       car_number,
       position,
       class_position,
+      class_id,
+      class_short_name,
+      i_rating,
       lap,
       last_lap,
+      last_lap_valid,
       best_lap,
+      best_lap_number,
       interval_s,
       gap_s,
+      in_pits,
+      out_lap,
+      last_pit_lap,
       updated_at,
       received_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(subsession_id, customer_id) DO UPDATE SET
       session_id=excluded.session_id,
       driver_name=excluded.driver_name,
+      team_name=excluded.team_name,
       car_number=excluded.car_number,
       position=excluded.position,
       class_position=excluded.class_position,
+      class_id=excluded.class_id,
+      class_short_name=excluded.class_short_name,
+      i_rating=excluded.i_rating,
       lap=excluded.lap,
       last_lap=excluded.last_lap,
+      last_lap_valid=excluded.last_lap_valid,
       best_lap=excluded.best_lap,
+      best_lap_number=excluded.best_lap_number,
       interval_s=excluded.interval_s,
       gap_s=excluded.gap_s,
+      in_pits=excluded.in_pits,
+      out_lap=excluded.out_lap,
+      last_pit_lap=excluded.last_pit_lap,
       updated_at=excluded.updated_at,
       received_at=excluded.received_at`
   );
@@ -171,14 +198,23 @@ async function ingest(env: Env, request: Request): Promise<Response> {
       row.subsessionId,
       row.customerId,
       row.driverName,
+      row.teamName ?? null,
       row.carNumber,
       row.position,
       row.classPosition,
+      row.classId ?? null,
+      row.classShortName ?? null,
+      row.iRating ?? null,
       row.lap,
       row.lastLap,
+      row.lastLapValid === undefined ? null : row.lastLapValid ? 1 : 0,
       row.bestLap,
+      row.bestLapNumber ?? null,
       row.interval,
       row.gap,
+      row.inPits === undefined ? null : row.inPits ? 1 : 0,
+      row.outLap === undefined ? null : row.outLap ? 1 : 0,
+      row.lastPitLap ?? null,
       row.updatedAt,
       now
     )
@@ -262,14 +298,23 @@ async function getLive(env: Env, request: Request): Promise<Response> {
     subsession_id as subsessionId,
     customer_id as customerId,
     driver_name as driverName,
+    team_name as teamName,
     car_number as carNumber,
     position,
     class_position as classPosition,
+    class_id as classId,
+    class_short_name as classShortName,
+    i_rating as iRating,
     lap,
     last_lap as lastLap,
+    last_lap_valid as lastLapValid,
     best_lap as bestLap,
+    best_lap_number as bestLapNumber,
     interval_s as interval,
     gap_s as gap,
+    in_pits as inPits,
+    out_lap as outLap,
+    last_pit_lap as lastPitLap,
     updated_at as updatedAt,
     received_at as receivedAt
   FROM live_timing`;
