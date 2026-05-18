@@ -167,7 +167,7 @@ async function ingest(env: Env, request: Request): Promise<Response> {
       last_pit_lap,
       updated_at,
       received_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(subsession_id, customer_id) DO UPDATE SET
       session_id=excluded.session_id,
       driver_name=excluded.driver_name,
